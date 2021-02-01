@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:http-policy="http://www.mulesoft.org/schema/mule/http-policy"
+      xmlns:http-transform="http://www.mulesoft.org/schema/mule/http-policy-transform"
+      xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+               http://www.mulesoft.org/schema/mule/http-policy http://www.mulesoft.org/schema/mule/http-policy/current/mule-http-policy.xsd
+               http://www.mulesoft.org/schema/mule/http-policy-transform http://www.mulesoft.org/schema/mule/http-policy-transform/current/mule-http-policy-transform.xsd">
+        <http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="22f208f9-2bdf-483f-b083-47792d6d6d3c" basePath="/api">
+	    	<http:request-connection host="{{{hostname}}}"/>
+    	</http:request-config>
+    <http-policy:proxy name="{{{policyId}}}-custom-policy"> 
+       <http-policy:source>
+          <logger level="INFO" doc:name="Logger" doc:id="79e57e37-261e-488f-b41f-2dfe4d99fc1e" message="username is {{{username}}} passcode is {{{passcode}}} "/>
+          <try>
+          <logger level="INFO" doc:name="Logger" doc:id="e59932f7-bfd6-40cc-85aa-5a36a88f135c" message=" host name is {{{hostname}}} "/>
+          <set-variable value="{{{username}}}" doc:name="Set Variable" doc:id="8b3df916-685a-4b9c-b3e8-648bacd7e429" variableName="username"/>
+          <set-variable value="{{{passcode}}}" doc:name="Set Variable" doc:id="6d3b75d6-8688-47c4-ae8d-173bad93a032" variableName="passcode"/>
+           <http:request method="GET" doc:name="Request" doc:id="0bd7d5af-5ddd-48af-bf97-c0de8f7acd42" config-ref="HTTP_Request_configuration" path="/credentials">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"username" : vars.username,
+	"passcode" : vars.passcode
+}]]]></http:headers>
+		</http:request>
+		<logger level="INFO" doc:name="Logger" doc:id="6778377a-9d34-47b5-8b36-c1aef7d566b1" message="http call successfull"/>
+		<error-handler >
+		<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="0f0b8514-03bb-4fa5-b940-4f0b8f4d5d15" type="HTTP">
+		<set-variable value="HTTP" doc:name="Set Variable" doc:id="a2c7b605-025d-4b97-9856-75e1819ef63c" variableName="errorstatus"/>
+		<logger level="INFO" doc:name="Logger" doc:id="ec8276fa-73f5-4360-b7d7-29cf56a2cdc2" message="inside http not found block"/>
+		</on-error-continue>
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="4391343b-bf43-41aa-a774-58022594a373" type="ANY">
+				
+				<set-variable value="Generic" doc:name="Set Variable" doc:id="7bdec4f8-991f-4f15-a184-e4aa3fcbb32f" variableName="errorstatus"/>
+				<logger level="INFO" doc:name="Logger" doc:id="2ee7e20f-5f89-49c8-bc67-9452c9037a8a" message="inside generic error block"/>
+			</on-error-continue>
+		</error-handler>
+</try>
+		<try>
+		<choice doc:name="Choice" doc:id="6b236172-a374-4e29-b9a2-c1167cc9542a" >
+			<when expression="#[payload.valid == true]">
+				<http-policy:execute-next/> 
+			</when>
+			<when expression="#[vars.error_status == 'HTTP']">
+			 
+				<ee:transform doc:name="Transform Message" doc:id="acdef23e-bace-4c5c-9998-e4b505b41061" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message:"user not found"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<http-transform:set-response statusCode="404" />
+			</when>
+			<when expression="#[vars.error_status == 'Generic']">
+			 
+				<ee:transform doc:name="Transform Message" doc:id="d80aaa55-c627-4971-938f-8d1ebf41cea1" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message:"credential service error"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<http-transform:set-response statusCode="500" />
+			</when>
+			<otherwise >
+			
+			
+				<ee:transform doc:name="Transform Message" doc:id="18b50e3a-eda7-40f6-9b9b-93b0c163ae9e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":"Invalid credentials"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<http-transform:set-response statusCode="401" />
+          
+			</otherwise>
+		</choice>
+		<error-handler>
+		<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="e9bb955d-0eae-4b42-9dc9-44e5da3e7100">
+		
+		<logger level="INFO" doc:name="Logger" doc:id="f57af750-2521-44e4-a98c-870f9f10c0d3" message="#[error]"/>
+				<http-transform:set-response statusCode="500" />
+		</on-error-continue>
+		</error-handler>
+           </try>
+          
+       </http-policy:source>
+   </http-policy:proxy>
+</mule>

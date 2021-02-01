@@ -1,0 +1,32 @@
+id: cust_auth
+name: cust_auth
+description: custom auth
+category: Custom
+type: custom
+resourceLevelSupported: true
+encryptionSupported: false
+standalone: true
+requiredCharacteristics: []
+providedCharacteristics: []
+configuration:
+   - propertyName: username
+     name: User Name
+     description: Credential Vault User.
+     type: expression
+     optional: false
+     sensitive: false
+     allowMultiple: false
+   - propertyName: passcode
+     name: Passcode
+     description: Credential Vault Password.
+     type: expression
+     optional: false
+     sensitive: false
+     allowMultiple: false
+   - propertyName: hstnme
+     name: Host Name
+     description: DNS details of the credential vault service.
+     type: string
+     optional: false
+     sensitive: false
+     allowMultiple: false
